@@ -1,0 +1,9 @@
+agregar archivos
+git add .
+comentar
+git commit -m "Primer commit con mis scripts"
+conectar con el repositorio
+git remote add origin hhttps://github.com/Greta-unsam/APS2.0
+PUSHEAR
+git push -u origin master
+
