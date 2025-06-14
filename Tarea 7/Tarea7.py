@@ -236,7 +236,7 @@ plt.semilogy(f_cheby, Pxx_cheby, label='Cheby I')
 plt.semilogy(f_vent, Pxx_vent, label='Ventanas')
 plt.semilogy(f_cuad, Pxx_cuad, label='Cuadrados Mínimos')
 
-plt.axvline(1, color='k', linestyle='--', linewidth=1, label='1 Hz')
+plt.axvline(0.1, color='k', linestyle='--', linewidth=1, label='0.1 Hz')
 plt.axvline(50, color='r', linestyle='--', linewidth=1, label='50 Hz')
 
 plt.title('Periodograma de Welch de cada señal')
