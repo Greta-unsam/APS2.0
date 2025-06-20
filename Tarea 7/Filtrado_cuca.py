@@ -1,154 +1,147 @@
-
-
-from pytc2.sistemas_lineales import plot_plantilla
-import sympy as sp
 import numpy as np
-import scipy.signal as sig
 import matplotlib.pyplot as plt
-import scipy.io as sio
+import scipy.signal as sig
+from scipy.io import wavfile
 from scipy.signal import firls
+from pytc2.sistemas_lineales import plot_plantilla
+import os
 
+# Leer archivo de audio
+ruta_audio = os.path.join(os.path.dirname(__file__), 'la cucaracha.wav')
+fs, audio = wavfile.read(ruta_audio)
 
+# Si es estéreo, usar un solo canal
+if audio.ndim > 1:
+    audio = audio[:, 0]
 
-# Normalización tipo z-score: (x - media) / std
+# Normalización tipo z-score
 def normalize(signal):
     return (signal - np.mean(signal)) / np.std(signal)
 
-# Cargar la señal de audio
-fs, ecg = sio.wavfile.read('la cucaracha.wav')
+audio = normalize(audio)
 
-
-# Aplicar normalización
-ecg = normalize(ecg)
-
-# Crear un vector de tiempo para la señal ECG completa
-t_ecg = np.arange(len(ecg)) / fs
-
-
-plt.figure(figsize=(10, 6))
-plt.plot(t_ecg, ecg, label='ECG Original')
-
+# Crear vector de tiempo
+t_audio = np.arange(len(audio)) / fs
 
 #########################################
 ########## PLANTILLA DE DISEÑO ##########
 #########################################
 
-
-
-# Configuración de la plantilla de diseño del filtro
+# Banda pasante para voz: 300 Hz a 3400 Hz
 fpass = np.array([300, 3400])
-ripple = 1
-fstop = np.array([100,4000])
-attenuation = 40
+ripple = 1          # dB de ondulación en la banda pasante
+fstop = np.array([100, 4000])
+attenuation = 40    # dB de atenuación fuera de banda
 
+# Mostrar plantilla
 plt.figure(figsize=(10, 6))
-plt.title('Plantilla de diseño')
-plt.xlabel('Frecuencia normalizada a Nyq [#]')
+plt.title('Plantilla de diseño (Audio)')
+plt.xlabel('Frecuencia [Hz]')
 plt.ylabel('Amplitud [dB]')
-plt.xlim(0, 75)
-plt.ylim(-100,20)
 plt.grid(which='both', axis='both')
-plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple, fstop=fstop, attenuation=attenuation, fs=fs)
+plt.xlim(0, 5000)
+plt.ylim(-100, 20)
+plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple,
+               fstop=fstop, attenuation=attenuation, fs=fs)
 
-
-
-# Grilla logarítmica y lineal en Hz
-w_rad = np.linspace(0, fs/2, 600, endpoint=True)  # lineal de 0 a fs/2
-
+# Frecuencias para evaluar la respuesta en frecuencia
+w_rad = np.linspace(0, fs / 2, 600, endpoint=True)
 
 ###########################################
 ############### FILTROS IIR ###############
 ###########################################
 
-############# BUTTER ###############
-sos_filter_vent = sig.iirdesign(fpass, fstop, ripple, attenuation, ftype='butter', output='sos',fs=fs)
-w_b, hh_b = sig.sosfreqz(sos_filter_vent, worN=w_rad, fs=fs)
+# Filtro Butterworth
+sos_filter_butter = sig.iirdesign(fpass, fstop, ripple, attenuation,
+                                  ftype='butter', output='sos', fs=fs)
+w_b, hh_b = sig.sosfreqz(sos_filter_butter, worN=w_rad, fs=fs)
 
-############# CHEBVY 1 ###############
-sos_filter_ch = sig.iirdesign(fpass, fstop, ripple, attenuation, ftype='cheby1', output='sos',fs=fs)
-w_c, hh_c = sig.sosfreqz(sos_filter_ch, worN=w_rad, fs=fs)
+# Filtro Chebyshev tipo I
+sos_filter_cheby = sig.iirdesign(fpass, fstop, ripple, attenuation,
+                                 ftype='cheby1', output='sos', fs=fs)
+w_c, hh_c = sig.sosfreqz(sos_filter_cheby, worN=w_rad, fs=fs)
 
-# Graficar la respuesta en módulo (dB)
+# Graficar respuestas en frecuencia
 plt.figure(figsize=(10, 5))
 plt.plot(w_b, 20 * np.log10(np.abs(hh_b) + 1e-15), label='Butterworth')
 plt.plot(w_c, 20 * np.log10(np.abs(hh_c) + 1e-15), label='Chebyshev I')
-plt.title('Respuesta en módulo de los filtros IIR')
+plt.title('Respuesta en módulo de los filtros IIR (Audio)')
 plt.xlabel('Frecuencia [Hz]')
 plt.ylabel('Módulo [dB]')
 plt.grid(which='both', axis='both')
-plt.xlim(0, 75)
-plt.ylim(-100,20)
+plt.xlim(0, 5000)
+plt.ylim(-100, 20)
 plt.legend()
 plt.tight_layout()
-plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple, fstop=fstop, attenuation=attenuation, fs=fs)
+plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple,
+               fstop=fstop, attenuation=attenuation, fs=fs)
 
 
 ###########################################
 ############### FILTROS FIR ###############
 ###########################################
 
+######### MÉTODO DE VENTANAS #########
 
-######### METODO VENTANAS #########
-# --- Filtro pasaaltos FIR ---
+# --- Pasaaltos FIR (ventanas) ---
 freq_hp = [0, fpass[0]*0.98, fpass[0], fs/2]
 gain_hp = [0, 0, 1, 1]
 freq_hp = np.array(freq_hp)
 
-numtaps = 1501  # Orden 
-b_hp = sig.firwin2(numtaps, freq_hp, gain_hp, fs=fs)
+numtaps_hp = 1501
+b_hp = sig.firwin2(numtaps_hp, freq_hp, gain_hp, fs=fs)
 
-# --- Filtro pasabajos FIR ---
+# --- Pasabajos FIR (ventanas) ---
 freq_lp = [0, fpass[1], fpass[1]*1.02, fs/2]
 gain_lp = [1, 1, 0, 0]
 freq_lp = np.array(freq_lp)
 
-numtaps = 201  # Orden 
-b_lp = sig.firwin2(numtaps, freq_lp, gain_lp, fs=fs)
+numtaps_lp = 201
+b_lp = sig.firwin2(numtaps_lp, freq_lp, gain_lp, fs=fs)
 
-# --- Convolucionamos ambos filtros para obtener el pasabanda ---
+# --- Filtro pasabanda por convolución ---
 b_vent = np.convolve(b_hp, b_lp)
 
-# --- Respuesta en frecuencia del filtro FIR pasabanda ---
+# --- Respuesta en frecuencia ---
 w_fir, h_fir = sig.freqz(b_vent, worN=w_rad, fs=fs)
 
-####### METODO CUADRADOS MINIMOS #########
+######### MÉTODO DE CUADRADOS MÍNIMOS #########
 
-# --- Filtro pasaaltos FIR (firls) ---
-numtaps = 1501  # Orden 
+# --- Pasaaltos FIR (firls) ---
+numtaps = 1501
 bands_hp = [0, fpass[0]*0.98, fpass[0], fs/2]
 desired_hp = [0, 0, 1, 1]
-bands_hp = np.array(bands_hp)
-bands_hp_norm = bands_hp / (fs/2)
-b_firls_hp = firls(numtaps, bands_hp_norm, desired_hp)
+bands_hp = np.array(bands_hp) / (fs / 2)
+b_firls_hp = firls(numtaps, bands_hp, desired_hp)
 
-# --- Filtro pasabajos FIR (firls) ---
-numtaps = 501  # Orden 
+# --- Pasabajos FIR (firls) ---
+numtaps = 501
 bands_lp = [0, fpass[1], fpass[1]*1.02, fs/2]
 desired_lp = [1, 1, 0, 0]
-bands_lp = np.array(bands_lp)
-bands_lp_norm = bands_lp / (fs/2)
-b_firls_lp = firls(numtaps, bands_lp_norm, desired_lp)
+bands_lp = np.array(bands_lp) / (fs / 2)
+b_firls_lp = firls(numtaps, bands_lp, desired_lp)
 
-# --- Convolucionamos ambos filtros para obtener el pasabanda ---
+# --- Filtro pasabanda por convolución ---
 b_firls = np.convolve(b_firls_hp, b_firls_lp)
 
-# --- Respuesta en frecuencia del filtro FIR pasabanda (firls) ---
+# --- Respuesta en frecuencia ---
 w_firls, h_firls = sig.freqz(b_firls, worN=w_rad, fs=fs)
 
+######### GRAFICAR RESPUESTAS #########
 
-# --- Graficar junto a los FIR ---
 plt.figure(figsize=(10, 5))
 plt.plot(w_fir, 20 * np.log10(np.abs(h_fir) + 1e-15), label='Ventanas', color='green')
-plt.plot(w_firls, 20 * np.log10(np.abs(h_firls) + 1e-15), label='Cuadrados', color='blue')
-plt.title('Respuesta en módulo de los filtros FIR')
+plt.plot(w_firls, 20 * np.log10(np.abs(h_firls) + 1e-15), label='Cuadrados Mínimos', color='blue')
+plt.title('Respuesta en módulo de los filtros FIR (Audio)')
 plt.xlabel('Frecuencia [Hz]')
 plt.ylabel('Módulo [dB]')
 plt.grid(which='both', axis='both')
-plt.xlim(0, 75)
+plt.xlim(0, 5000)
 plt.ylim(-100, 20)
 plt.legend()
 plt.tight_layout()
-plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple, fstop=fstop, attenuation=attenuation, fs=fs)
+plot_plantilla(filter_type='bandpass', fpass=fpass, ripple=ripple,
+               fstop=fstop, attenuation=attenuation, fs=fs)
 plt.show()
 
 
@@ -156,31 +149,35 @@ plt.show()
 ######### APLICANDO LOS FILTROS #########
 #########################################
 
+# Aplicar filtros IIR (sin desfase)
+audio_butter = sig.sosfiltfilt(sos_filter_butter, audio)
+audio_cheby = sig.sosfiltfilt(sos_filter_cheby, audio)
 
-# Aplicar el filtro Butterworth (sin desfase)
-ecg_butter = sig.sosfiltfilt(sos_filter_vent, ecg)
-# Aplicar el filtro Chebyshev I (sin desfase)
-ecg_cheby = sig.sosfiltfilt(sos_filter_ch, ecg)
-# Aplicar el filtro FIR por Ventanas (sin desfase)
-ecg_vent = sig.filtfilt(b_vent, 1.0, ecg)
-# Aplicar el filtro FIR por Cuadrados Mínimos (sin desfase)
-ecg_cuad = sig.filtfilt(b_firls, 1.0, ecg)
+# Aplicar filtros FIR (sin desfase)
+audio_vent = sig.filtfilt(b_vent, 1.0, audio)
+audio_cuad = sig.filtfilt(b_firls, 1.0, audio)
+
 
 #########################################
 ############# GRAFICANDO ################
 #########################################
 
-plt.figure(figsize=(10, 6))
-plt.plot(t_ecg, ecg, label='ECG Original', color='lightblue')
-plt.plot(t_ecg, ecg_butter, label='Butter', linewidth=0.5)
-plt.plot(t_ecg, ecg_cheby, label='Chebyshev I', linewidth=0.5)
-plt.plot(t_ecg, ecg_vent, label='Ventanas', linewidth=0.5)
-plt.plot(t_ecg, ecg_cuad, label='Cuadrados Mínimos', linewidth=0.5)
+plt.figure(figsize=(12, 6))
 
-plt.title('ECG filtering example')
-plt.ylabel('Adimensional')
+# Señal original
+plt.plot(t_audio, audio, label='Audio Original', color='lightblue', linewidth=2)
+
+# Señales filtradas
+plt.plot(t_audio, audio_butter, label='Butterworth', linewidth=0.7)
+plt.plot(t_audio, audio_cheby, label='Chebyshev I', linewidth=0.7)
+plt.plot(t_audio, audio_vent, label='FIR Ventanas', linewidth=0.7)
+plt.plot(t_audio, audio_cuad, label='FIR Cuadrados Mínimos', linewidth=0.7)
+
+plt.title('Filtrado de Audio - Comparación de Métodos')
 plt.xlabel('Tiempo [s]')
-axes_hdl = plt.gca()
-axes_hdl.legend()
-axes_hdl.set_yticks(())
-plt.xlim(0, 10)  # Limitar el eje x a los primeros 10 segundos
+plt.ylabel('Amplitud (normalizada)')
+plt.legend()
+plt.grid(True)
+plt.xlim(0, 0.4)  # Mostrar solo los primeros 5 segundos
+plt.tight_layout()
+plt.show()
