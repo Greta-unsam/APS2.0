@@ -170,14 +170,35 @@ plt.plot(t_audio, audio, label='Audio Original', color='lightblue', linewidth=2)
 # Señales filtradas
 plt.plot(t_audio, audio_butter, label='Butterworth', linewidth=0.7)
 plt.plot(t_audio, audio_cheby, label='Chebyshev I', linewidth=0.7)
-plt.plot(t_audio, audio_vent, label='FIR Ventanas', linewidth=0.7)
-plt.plot(t_audio, audio_cuad, label='FIR Cuadrados Mínimos', linewidth=0.7)
+plt.plot(t_audio, audio_vent, label='Ventanas', linewidth=0.7)
+plt.plot(t_audio, audio_cuad, label='Cuadrados Mínimos', linewidth=0.7)
 
 plt.title('Filtrado de Audio - Comparación de Métodos')
 plt.xlabel('Tiempo [s]')
 plt.ylabel('Amplitud (normalizada)')
 plt.legend()
 plt.grid(True)
-plt.xlim(0, 0.4)  # Mostrar solo los primeros 5 segundos
+plt.xlim(0, 3)  # Mostrar solo los primeros 5 segundos
+plt.tight_layout()
+plt.show()
+
+
+plt.figure(figsize=(12, 6))
+
+# Señal original
+plt.plot(t_audio, audio, label='Audio Original', color='lightblue', linewidth=2)
+
+# Señales filtradas
+plt.plot(t_audio, audio_butter, label='Butterworth', linewidth=0.7)
+plt.plot(t_audio, audio_cheby, label='Chebyshev I', linewidth=0.7)
+plt.plot(t_audio, audio_vent, label='Ventanas', linewidth=0.7)
+plt.plot(t_audio, audio_cuad, label='Cuadrados Mínimos', linewidth=0.7)
+
+plt.title('Filtrado de Audio - Comparación de Métodos')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud (normalizada)')
+plt.legend()
+plt.grid(True)
+plt.xlim(0.5, 1)  # Mostrar solo los primeros 5 segundos
 plt.tight_layout()
 plt.show()
